@@ -1,25 +1,34 @@
 package hapo31.jp.breaktimer
 
+import android.accounts.AccountManager
 import android.content.ContentResolver
+import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.CalendarContract
 import android.util.Log
+import android.view.Menu
 import android.widget.ArrayAdapter
-import android.widget.ListView
 import java.text.SimpleDateFormat
 import java.util.*
+
+import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
     val TAG : String = this.javaClass.simpleName
 
     var context : Context? = null
-    var cr : ContentResolver? = null
-    var adapter : ArrayAdapter<String>? = null
-    var listView : ListView? = null
+        get() = applicationContext
 
+    val cr : ContentResolver by lazy {
+        contentResolver
+    }
+    val adapter by lazy {
+        ArrayAdapter<String>(context, R.layout.text_view)
+    }
 
     val projection = arrayOf(
             CalendarContract.Events._ID,
@@ -35,6 +44,7 @@ class MainActivity : AppCompatActivity() {
             " AND (${CalendarContract.Events.DTEND} <= ?)" +
             " AND (${CalendarContract.Events.CALENDAR_ID} = ?)" +
             ")"
+
     init {
 
     }
@@ -43,18 +53,49 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        context = applicationContext
-        adapter = ArrayAdapter<String>(context, R.layout.text_view)
-        listView = findViewById(R.id.listView) as ListView
-        listView?.adapter = adapter
-        cr = contentResolver
+        listView.adapter = adapter
 
         showCalendars("yasuhara@techfirm.co.jp")
         showCalendars("happo31@gmail.com")
 
+        addEventButton.setOnClickListener()
+        { v ->
+            addEventCalendar()
+            showCalendars("yasuhara@techfirm.co.jp")
+            showCalendars("happo31@gmail.com")
+        }
+
+        accountSelectButton.setOnClickListener()
+        { v ->
+            val intent : Intent = AccountManager.get(this).newChooseAccountIntent
+
+        }
 
     }
 
+    override fun onCreateOptionsMenu(menu : Menu) : Boolean {
+
+        menu.add(Menu.NONE, 0, Menu.NONE, "アカウントの選択")
+
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    private fun addEventCalendar() : Unit
+    {
+        val values = ContentValues()
+        values.put(CalendarContract.Events.CALENDAR_ID, 2)
+        values.put(CalendarContract.Events.TITLE, "test")
+        values.put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+        //今から5分間のイベントを作成
+        values.put(CalendarContract.Events.DTSTART, System.currentTimeMillis())
+        values.put(CalendarContract.Events.DTEND, System.currentTimeMillis() + 1000 * 60 * 5)
+
+        val uri = cr.insert(CalendarContract.Events.CONTENT_URI, values)
+        val eventID = uri.lastPathSegment.toLong()
+        Log.v(TAG, "EventID:$eventID")
+
+        return
+    }
 
     private fun showCalendars(account : String) : Unit
     {
@@ -72,16 +113,19 @@ class MainActivity : AppCompatActivity() {
                 "2"
         )
 
-        adapter?.add(account)
+        adapter.add(account)
 
-        val cursor = cr?.query(CalendarContract.Events.CONTENT_URI, projection, selection, selectionArgs, null)
+        val cursor = cr.query(CalendarContract.Events.CONTENT_URI, projection, selection, selectionArgs, null)
 
         var hasNext : Boolean = cursor?.moveToFirst()!!
         if(!hasNext)
         {
-            adapter?.add("予定なし")
+            adapter.add("予定なし")
             return
         }
+
+        adapter.clear()
+
         while(hasNext)
         {
             val id = cursor?.getLong(0)
@@ -95,11 +139,11 @@ class MainActivity : AppCompatActivity() {
             val eDate = sdf.format(end)
             val result = "$id $title:$sDate - $eDate"
             Log.v(TAG, result)
-            adapter?.add(result)
+            adapter.add(result)
 
             hasNext = cursor?.moveToNext()!!
         }
-        adapter?.notifyDataSetChanged()
+        adapter.notifyDataSetChanged()
         cursor?.close()
     }
 
