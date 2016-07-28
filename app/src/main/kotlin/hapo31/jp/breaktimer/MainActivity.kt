@@ -4,13 +4,15 @@ import android.accounts.AccountManager
 import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.CalendarContract
 import android.util.Log
 import android.view.Menu
 import android.widget.ArrayAdapter
+import android.widget.Spinner
+import android.widget.Toast
+//import kotlinx.android.synthetic.main.accounts_spinner.*
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -44,7 +46,9 @@ class MainActivity : AppCompatActivity() {
             " AND (${CalendarContract.Events.DTEND} <= ?)" +
             " AND (${CalendarContract.Events.CALENDAR_ID} = ?)" +
             ")"
-
+    val accountsSpinner by lazy {
+        Spinner(context)
+    }
     init {
 
     }
@@ -67,8 +71,23 @@ class MainActivity : AppCompatActivity() {
 
         accountSelectButton.setOnClickListener()
         { v ->
-            val intent : Intent = AccountManager.get(this).newChooseAccountIntent
+            val am = AccountManager.get(this)
+            val accounts = am.getAccountsByType("com.google")
+            if(accounts.size > 0) {
 
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                for (account in accounts) {
+                    adapter.add(account.name)
+                    Log.v(TAG, "account:${account.name}")
+                }
+                accountsSpinner.adapter = adapter
+                accountsSpinner.performClick()
+            }
+            else
+            {
+                Toast.makeText(context, "User is not found this device...", Toast.LENGTH_SHORT).show()
+
+            }
         }
 
     }
